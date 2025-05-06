@@ -137,7 +137,27 @@ systemctl enable usbgadget.service
 shutdown -r now
 ```
 
+
 20. To make sure everything went as it should, on your iPad or iPhone, go into Settings and confirm that you an `Ethernet` device listed underneath `Wi-Fi` in settings.  Tap on it and make sure you have an assigned `IP Address` (ie, it isn't blank).  If you do not have an assigned IP address, then something went wrong in the steps above - double check **EVERYTHING**!
+
+```
+sudo sysctl -w net.ipv4.ip_forward=1
+systemctl enable usbgadget.service
+echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
+# Masquerade traffic going out of tailscale0
+sudo iptables -t nat -A POSTROUTING -o tailscale0 -j MASQUERADE
+
+# Allow traffic from usb0 to tailscale0
+sudo iptables -A FORWARD -i usb0 -o tailscale0 -j ACCEPT
+sudo iptables -A FORWARD -i tailscale0 -o usb0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+# Allow traffic from tailscale0 to usb0
+sudo iptables -A FORWARD -i tailscale0 -o usb0 -j ACCEPT
+sudo iptables -A FORWARD -i usb0 -o tailscale0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+sudo apt-get install iptables-persistent
+sudo /etc/init.d/iptables-persistent save 
+sudo /etc/init.d/iptables-persistent reload
+```
 
 21. To test that this is working as expected, you can do the following:
 
